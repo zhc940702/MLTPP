@@ -13,7 +13,7 @@ A capsule network-based peptide therapeutic property predictor named MLTPP is ab
 
 # Files:
 
-1.data
+1.data1
 
 seqfeature.pckl: The peptide encoding sequence feature vector.
 
@@ -29,7 +29,7 @@ kmerfeature.pckl: The peptide sequence feature vector extracted based on kmer.
 
 tngfeature.pckl: The peptide tng feature encoding vector.
 
-label.pckl: Each peptide has a 5-dimensional 0-1 vector representing the 5 therapeutic property labels of the peptide, namely antimicrobial peptides (AMPs), anticancer peptides (ACPs), antidiabetic peptides (ADPs), antihypertensives Peptides (AHPs), anti-inflammatory peptides (AIPs), where 1 means the peptide has this therapeutic property and 0 means it does not.
+label.pckl (ACP, ADP, AHP, AIP and AMP folders): Each peptide has a 5-dimensional 0-1 vector representing the 5 therapeutic property labels of the peptide, namely antimicrobial peptides (AMPs), anticancer peptides (ACPs), antidiabetic peptides (ADPs), antihypertensives Peptides (AHPs), anti-inflammatory peptides (AIPs), where 1 means the peptide has this therapeutic property and 0 means it does not.
 If you want to view the value stored in the file, you can run the following command:
 
 ```bash
