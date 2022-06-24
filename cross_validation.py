@@ -94,22 +94,20 @@ def read_raw_data(rawdata_dir):
     # ATC_feature = pickle.load(gii)
     # gii.close()
     Drug_feature = np.concatenate((drug_feature_one, drug_feature_two,drug_feature_three,drug_feature_four,drug_feature_five,drug_feature_six,drug_feature_seven), axis=1)
-    return Drug_feature, drug_label,seqs
+    tr_f, te_f, tr_l, te_l = train_test_split(Drug_feature, drug_label, test_size=0.2)
+    return tr_f,tr_l,te_f,te_l,seqs
 
-def ten_fold_files(Drug_feature, Drug_ATC_label,seqs, args):
-    X = Drug_feature
+def five_fold_files(tr_f,tr_l,te_f,te_l,seqs, args):
+    X = tr_f
     # index = np.zeros((len(X), 1))
     # for i in range(len(X)):
     #     index[i,0] = i
     # X_index = np.hstack((index, X))
-    y = Drug_ATC_label
+    y = tr_l
     fold = 1
     total_Precision, total_Coverages, total_Abs_True_Rates, total_Abs_False_Rates, total_Accuracys, total_Hamming_losses = [], [], [], [], [], [], [], [],[],[],[],[],[],[],[],[],[],[],[],[]
     kk = 0
-    kfold = KFold(10, random_state=1, shuffle=True)
-    zeros = np.zeros((1,5))
-    temp = []
-    P,R,FPR,TPR = [],[],[],[]
+    kfold = KFold(5, random_state=1, shuffle=True)
     for k, (train, test) in enumerate(kfold.split(X, y)):
         kk = kk + 1
         # train_drug_label = Drug_ATC_label.copy()
@@ -118,6 +116,74 @@ def ten_fold_files(Drug_feature, Drug_ATC_label,seqs, args):
         print("==================================fold {} start".format(fold))
         print("Train Index:", train, ",Test Index:", test)
         total_Precision, total_Coverage, total_Abs_True_Rate, total_Abs_False_Rate, total_Accuracy, total_Hamming_loss ,labels = train_test(X[train], y[train], X[test], y[test], args, test,train,seqs[test])
+        independ_dataset = Data.TensorDataset(torch.from_numpy(te_f), torch.from_numpy(te_l))
+        independ_loader = Data.DataLoader(
+            dataset=independ_dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+        )
+        model_dir = args.model_dir.rstrip("/")
+        model = CapsuleNet().to(device)
+        criterion = torch.nn.BCELoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        test_step = len(independ_loader)
+        print("test_step: {}".format(test_step))
+        start = time.time()
+        model = CapsuleNet().to(device)
+        para_dict = torch.load(model_dir + args.model_name)
+        model_dict = model.state_dict()
+        model_dict.update(para_dict)
+        model.load_state_dict(model_dict)
+        model.eval()  # eval mode (batchnorm uses moving mean/variance instead of mini-batch mean/variance)
+        labels_all = []
+        predicted_all = []
+        score_all = []
+        total_test = 0
+        with torch.no_grad():
+            for step, (batch_x, batch_y) in enumerate(independ_loader):
+                # batch_x = batch_x_index.numpy()[:, 1::]
+                # index = batch_x_index.numpy()[:, 0]
+                # batch_x = torch.from_numpy(batch_x)
+                # batch_x = batch_x.to(device)
+                feature1 = batch_x[:, 0:517].to(device)
+                feature2 = batch_x[:, 517:1034].to(device)
+                feature3 = batch_x[:, 1034:1551].to(device)
+                feature4 = batch_x[:, 1551:2068].to(device)
+                feature5 = batch_x[:, 2068:2073].to(device)
+                feature6 = batch_x[:, 2073:2093].to(device)
+                feature7 = batch_x[:, 2093::].to(device)
+                batch_y = batch_y.to(device)
+                outputs = model(feature1.float(), feature2.float(), feature3.float(), feature4.float(),
+                                feature5.float(), feature6.float(), feature7.float(), len(feature1))
+                loss = criterion(outputs.float(), batch_y.float())
+
+                if device.type == 'cuda':
+                    batch_y = batch_y.cpu()
+                    predicted = outputs.cpu()
+                    score = outputs.cpu()
+                labels_all.append(batch_y.numpy())
+                predicted = predicted.numpy()
+                score = score.numpy()
+                score_all.append(score)
+                predicted_all.append(predicted)
+
+                predicted[predicted >= 0.5] = 1
+                predicted[predicted < 0.5] = 0
+                predicted = predicted.astype(int)
+                D = batch_y.numpy().shape[0]
+                total_test = total_test + D
+        total_labels = np.concatenate(labels_all)
+        total_preds = np.concatenate(predicted_all)
+        total_score = np.concatenate(score_all)
+
+        i_Aiming = Aiming(total_labels, total_preds, total_test)
+        i_Coverage = Coverage(total_labels, total_preds, total_test)
+        i_Abs_True_Rate = Abs_True_Rate(total_labels, total_preds, total_test)
+        i_Abs_False_Rate = Abs_False_Rate(total_labels, total_preds, total_test, )
+        i_Accuracy = Accuracy(total_labels, total_preds, total_test)
+        i_Hamming_loss = Hamming_loss(total_labels, total_preds, total_test)
+        temp = [i_Aiming, i_Coverage, i_Abs_True_Rate, i_Abs_False_Rate, i_Accuracy, i_Hamming_loss]
+        ind.append(temp)
         total_Precision.append(total_Precision)
         total_Coverages.append(total_Coverage)
         total_Abs_True_Rates.append(total_Abs_True_Rate)
@@ -127,14 +193,14 @@ def ten_fold_files(Drug_feature, Drug_ATC_label,seqs, args):
 
         print("==================================fold {} end".format(fold))
         fold += 1
-        print("=====Ten fold cross validation result:\n\t\t "
+        print("=====Five fold cross validation result:\n\t\t "
               'Precision: {:.4f}, Coverage: {:.4f}, Abs_True_Rate: {:.4f}, '
                       'Abs_False_Rate: {:.4f}, Accuracy: {:.4f}, Hamming_loss: {:.4f}'.format(np.mean(total_Precision), np.mean(total_Coverages),
                                                    np.mean(total_Abs_True_Rates), np.mean(total_Abs_False_Rates), np.mean(total_Accuracys), np.mean(total_Hamming_losses)))
 
 
         sys.stdout.flush()
-
+    print(ind)
 
 def train_test(X_index_train, y_train, x_index_test, y_test, args, test,train,seqs):
     train_dataset = Data.TensorDataset(torch.from_numpy(X_index_train), torch.from_numpy(y_train),torch.from_numpy(train))
@@ -301,9 +367,9 @@ def train_test(X_index_train, y_train, x_index_test, y_test, args, test,train,se
 
 def train_test_five_fold(args):
     print("[main]reading data===============")
-    Drug_feature, Drug_ATC_label,seqs = read_raw_data(args.rawdata_dir)
+    tr_f,tr_l,te_f,te_l,seqs = read_raw_data(args.rawdata_dir)
     print("[main]cross validation===============")
-    ten_fold_files(Drug_feature, Drug_ATC_label,seqs, args)
+    five_fold_files(tr_f,tr_l,te_f,te_l,seqs, args)
 
 
 def display_args(args):
