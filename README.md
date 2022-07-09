@@ -1,6 +1,6 @@
-# MLTPP
-# MLTPP
-A capsule network-based peptide therapeutic property predictor named MLTPP is able to predict the therapeutic properties of peptides and gives a 5-dimensional 0-1 vector as the prediction result.
+# SCN-MLTPP
+# SCN-MLTPP
+A capsule network-based peptide therapeutic property predictor named SCN-MLTPP is able to predict the therapeutic properties of peptides and gives a 5-dimensional 0-1 vector as the prediction result.
 
 
 
