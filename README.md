@@ -42,7 +42,7 @@ drug_feature_one = pickle.load(gii)
 
 2.Code
 
-capsnet.py: The network framework of MLTPP written by pytorch takes the feature vectors and labels of peptides in the data as input, and outputs a 5-dimensional 0-1 vector as the prediction result.
+capsnet.py: The network framework of SCN-MLTPP written by pytorch takes the feature vectors and labels of peptides in the data as input, and outputs a 5-dimensional 0-1 vector as the prediction result.
 
 single_label.py: computing evaluation metric. This function can evaluate the prediction performance of a multi-label classifier. Evaluation indicators are: Precision, Coverage, Absolutely true rate, Absolutely false rate and Accuracy.
 
